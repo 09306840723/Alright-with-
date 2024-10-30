@@ -1,0 +1,53 @@
+
+# فرض کن دیتاست به شکل DataFrame وارد شده باشه
+data = pd.read_csv('your_dataset.csv')
+
+# نمایش خلاصه‌ای از داده‌ها
+print(data.head())
+
+# 1. شناسایی اقلامی که معمولاً با هم خریداری می‌شوند
+# تبدیل داده‌ها به قالبی مناسب برای الگوریتم‌های انجمنی
+basket = data.groupby(['Customer_ID', 'Product_ID']).size().unstack().fillna(0).applymap(lambda x: 1 if x > 0 else 0)
+print(basket.head())
+
+# اجرای الگوریتم Apriori برای پیدا کردن مجموعه اقلام پرتکرار
+frequent_itemsets = apriori(basket, min_support=0.05, use_colnames=True)
+print(frequent_itemsets)
+
+# استخراج قوانین انجمنی
+rules = association_rules(frequent_itemsets, metric="lift", min_threshold=1)
+print(rules)
+
+# 2. تحلیل فراوانی خرید اقلام
+product_counts = data['Product_ID'].value_counts()
+print(product_counts)
+
+# رسم نمودار محصولات پرفروش
+plt.figure(figsize=(10, 6))
+sns.barplot(x=product_counts.index[:10], y=product_counts.values[:10], palette='viridis')
+plt.title('Top 10 Most Sold Products')
+plt.xlabel('Product ID')
+plt.ylabel('Number of Sales')
+plt.show()
+
+# 3. تحلیل توالی خرید
+# فرض کن دیتاست شامل تاریخچه خرید مشتریان باشد
+data['Purchase_Date'] = pd.to_datetime(data['Purchase_Date'])
+data = data.sort_values(by=['Customer_ID', 'Purchase_Date'])
+
+# نمایش سبد خرید مشتریان به شکل توالی خرید
+data['Prev_Product'] = data.groupby('Customer_ID')['Product_ID'].shift(1)
+sequences = data.dropna(subset=['Prev_Product'])
+print(sequences.head())
+
+# شناسایی الگوهای خرید پی در پی
+sequence_counts = sequences.groupby(['Prev_Product', 'Product_ID']).size().reset_index(name='Count').sort_values(by='Count', ascending=False)
+print(sequence_counts)
+
+# رسم نمودار الگوهای خرید پی در پی
+plt.figure(figsize=(12, 8))
+sns.heatmap(sequence_counts.pivot('Prev_Product', 'Product_ID', 'Count'), cmap='Blues')
+plt.title('Sequential Purchase Patterns')
+plt.xlabel('Next Product')
+plt.ylabel('Previous Product')
+plt.show()
